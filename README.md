@@ -2,7 +2,7 @@
 
 Syntax-highlighted previews for pi's built-in tool calls.
 
-`pi-code-previews` makes `bash`, `read`, `write`, `edit`, `grep`, `find`, and `ls` output easier to scan in the pi TUI without changing what the tools do.
+`pi-code-previews` makes `bash`, `read`, `write`, `edit`, `grep`, `find`, and `ls` output easier to scan in the pi TUI without changing what the tools do. If another extension already owns one of those tools, `pi-code-previews` skips that renderer instead of replacing it.
 
 ## Install
 
@@ -50,6 +50,8 @@ Check status with:
 ```text
 /code-preview-health
 ```
+
+The health panel shows registered renderers and any skipped renderers. Skips usually mean another extension owns that tool, for example a `bash` wrapper.
 
 Settings are stored globally in:
 

@@ -6,15 +6,43 @@ import { registerGrep } from "./tool-renderers/grep.ts";
 import { registerLs } from "./tool-renderers/ls.ts";
 import { registerRead } from "./tool-renderers/read.ts";
 import { registerWrite } from "./tool-renderers/write.ts";
-import { getEnabledCodePreviewTools } from "./tool-selection.ts";
+import { getEnabledCodePreviewTools, type CodePreviewToolName } from "./tool-selection.ts";
 
-export function registerToolRenderers(pi: ExtensionAPI, cwd: string) {
+export interface CodePreviewRendererRegistrationStatus {
+  registered: CodePreviewToolName[];
+  skipped: Array<{ name: CodePreviewToolName; reason: string }>;
+}
+
+interface RegisterToolRenderersOptions {
+  skipTools?: Map<CodePreviewToolName, string>;
+}
+
+export function registerToolRenderers(
+  pi: ExtensionAPI,
+  cwd: string,
+  options: RegisterToolRenderersOptions = {},
+): CodePreviewRendererRegistrationStatus {
   const enabledTools = getEnabledCodePreviewTools();
-  if (enabledTools.has("bash")) registerBash(pi, cwd);
-  if (enabledTools.has("read")) registerRead(pi, cwd);
-  if (enabledTools.has("write")) registerWrite(pi, cwd);
-  if (enabledTools.has("edit")) registerEdit(pi, cwd);
-  if (enabledTools.has("grep")) registerGrep(pi, cwd);
-  if (enabledTools.has("find")) registerFind(pi, cwd);
-  if (enabledTools.has("ls")) registerLs(pi, cwd);
+  const status: CodePreviewRendererRegistrationStatus = { registered: [], skipped: [] };
+
+  const register = (name: CodePreviewToolName, registerTool: () => void) => {
+    if (!enabledTools.has(name)) return;
+    const skipReason = options.skipTools?.get(name);
+    if (skipReason) {
+      status.skipped.push({ name, reason: skipReason });
+      return;
+    }
+    registerTool();
+    status.registered.push(name);
+  };
+
+  register("bash", () => registerBash(pi, cwd));
+  register("read", () => registerRead(pi, cwd));
+  register("write", () => registerWrite(pi, cwd));
+  register("edit", () => registerEdit(pi, cwd));
+  register("grep", () => registerGrep(pi, cwd));
+  register("find", () => registerFind(pi, cwd));
+  register("ls", () => registerLs(pi, cwd));
+
+  return status;
 }

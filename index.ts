@@ -1,7 +1,11 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getSettingsListTheme } from "@mariozechner/pi-coding-agent";
 import { Container, Text, SettingsList } from "@mariozechner/pi-tui";
-import { registerToolRenderers } from "./src/renderers.ts";
+import { getCodePreviewToolConflicts } from "./src/tool-conflicts.ts";
+import {
+  type CodePreviewRendererRegistrationStatus,
+  registerToolRenderers,
+} from "./src/renderers.ts";
 import { getSettingsPath, loadSettingsFromDisk, saveSettingsToDisk } from "./src/settings-store.ts";
 import { createSettingsItems } from "./src/settings-ui.ts";
 import { setCodePreviewSettings, codePreviewSettings, updateSetting } from "./src/settings.ts";
@@ -16,6 +20,16 @@ export default async function codePreviews(pi: ExtensionAPI) {
   if (savedSettings) setCodePreviewSettings(savedSettings);
   if (codePreviewSettings.syntaxHighlighting) void initializeShiki(codePreviewSettings.shikiTheme);
 
+  let rendererStatus: CodePreviewRendererRegistrationStatus = { registered: [], skipped: [] };
+
+  pi.on("session_start", (_event, ctx) => {
+    const conflicts = getCodePreviewToolConflicts(pi.getAllTools());
+    const skipTools = new Map(
+      [...conflicts].map(([name, conflict]) => [name, `owned by ${conflict.owner}`]),
+    );
+    rendererStatus = registerToolRenderers(pi, ctx.cwd, { skipTools });
+  });
+
   pi.registerCommand("code-preview-health", {
     description: "Show code preview renderer health and settings",
     handler: async (_args, ctx) => {
@@ -27,6 +41,8 @@ export default async function codePreviews(pi: ExtensionAPI) {
         `Syntax highlighting: ${codePreviewSettings.syntaxHighlighting ? "on" : "off"}`,
         `Word-level diff emphasis: ${codePreviewSettings.wordEmphasis}`,
         `Enabled tools: ${formatEnabledCodePreviewTools()}`,
+        `Registered renderers: ${formatRegisteredRenderers(rendererStatus)}`,
+        `Skipped renderers: ${formatSkippedRenderers(rendererStatus)}`,
         `Cache: ${status.cacheSize}/${status.cacheLimit}`,
         `Loaded languages: ${status.loadedLanguages}`,
         `Pending languages: ${status.pendingLanguages}`,
@@ -80,8 +96,14 @@ export default async function codePreviews(pi: ExtensionAPI) {
       });
     },
   });
+}
 
-  registerToolRenderers(pi, process.cwd());
+function formatRegisteredRenderers(status: CodePreviewRendererRegistrationStatus): string {
+  return status.registered.join(", ") || "none";
+}
+
+function formatSkippedRenderers(status: CodePreviewRendererRegistrationStatus): string {
+  return status.skipped.map(({ name, reason }) => `${name} (${reason})`).join(", ") || "none";
 }
 
 class HealthPanel extends Container {

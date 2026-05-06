@@ -15,6 +15,22 @@ afterEach(() => {
   else process.env.CODE_PREVIEW_TOOLS = previousCodePreviewTools;
 });
 
+test("registered renderers skip externally owned tools", () => {
+  process.env.CODE_PREVIEW_TOOLS = "bash,read";
+  const registered: string[] = [];
+  const status = registerToolRenderers(
+    {
+      registerTool: (tool: unknown) => registered.push((tool as { name: string }).name),
+    } as never,
+    "/tmp/project",
+    { skipTools: new Map([["bash", "owned by uv.ts"]]) },
+  );
+
+  assert.deepEqual(registered, ["read"]);
+  assert.deepEqual(status.registered, ["read"]);
+  assert.deepEqual(status.skipped, [{ name: "bash", reason: "owned by uv.ts" }]);
+});
+
 test("registered grep renderer highlights literal matches only", () => {
   process.env.CODE_PREVIEW_TOOLS = "grep";
   const registered: Array<{ name: string; renderResult?: (...args: unknown[]) => Component }> = [];

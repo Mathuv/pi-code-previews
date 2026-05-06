@@ -27,6 +27,6 @@ export function formatEnabledCodePreviewTools(enabled = getEnabledCodePreviewToo
   return ALL_CODE_PREVIEW_TOOLS.filter((tool) => enabled.has(tool)).join(", ") || "none";
 }
 
-function isCodePreviewToolName(value: string): value is CodePreviewToolName {
+export function isCodePreviewToolName(value: string): value is CodePreviewToolName {
   return (ALL_CODE_PREVIEW_TOOLS as readonly string[]).includes(value);
 }
